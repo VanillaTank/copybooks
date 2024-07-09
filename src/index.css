@@ -6,3 +6,10 @@
     max-width: 1200px;
     margin: 0 auto;
 }
+
+@font-face {
+    font-family: 'Propisi';
+    font-style: normal;
+    font-weight: 400;
+    src: url('@/fonts/propisi.ttf') format('truetype');
+}

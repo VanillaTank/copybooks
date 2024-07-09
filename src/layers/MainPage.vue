@@ -2,22 +2,24 @@
   <div class="container border border-amber-900">
     <Settings />
 
+    <input type="file" @change="base64convert">
+
     <div
         class="flex justify-between"
         style="min-height: 430px"
     >
       <TextInput
-          style="width: 50%;"
+          style="width: 45%;"
           class="border border-b-green-200 h-full"/>
       <div
           class="border border-lime-800"
-          style="width: 50%;"
+          style="width: 55%;"
       >
         <button
             class="bg-transparent hover:bg-blue-500 text-blue-700 font-semibold hover:text-white py-2 px-4 border border-blue-500 hover:border-transparent rounded"
             @click="loadPdf"
         >Скачать PDF</button>
-        <Preview id="worksheet"/>
+        <Preview />
       </div>
     </div>
   </div>
@@ -30,33 +32,45 @@ import TextInput from '../components/TextInput.vue'
 
 import { jsPDF } from "jspdf";
 import html2canvas from "html2canvas";
+import {computed} from "vue";
+import store from "@/store.js";
 
+function base64convert (event) {
+  const files = event.target.files
+  console.clear()
+  const reader = new FileReader()
+  reader.onload = (e) => {
+    console.log(e.target.result)
+  }
+  reader.readAsDataURL(files[0])
+}
 
+const pageAmount = computed(() => store.state.pageAmount)
 
 function loadPdf () {
   const pdf = new jsPDF();
-  const element = document.getElementById('worksheet');
-
-  html2canvas(element).then(canvas => {
-    const imgData = canvas.toDataURL('image/png');
-    const imgWidth = 210; // Ширина PDF страницы в мм (A4 размер)
-    const pageHeight = 295; // Высота PDF страницы в мм (A4 размер)
-    const imgHeight = canvas.height * imgWidth / canvas.width;
-    let heightLeft = imgHeight;
-
-    const maxPageHeight = 35 * 22 / 3.8
-
-    let position = 0;
-    while (heightLeft > 0) {
-      if (position) {
-        pdf.addPage();
-      }
-      pdf.addImage(imgData, 'PNG', 0, position, imgWidth, imgHeight, null, 'NONE');
-      heightLeft -= pageHeight;
-      position = heightLeft - imgHeight;
+  const getPages = () => {
+    const res = []
+    for (let i = 1; i <= pageAmount.value; i += 1) {
+      res.push(document.getElementById(`worksheet-${i}`))
     }
+    return res
+  }
 
-    pdf.save('прописи.pdf');
-  })
+  Promise.all(getPages().map((element, index) => {
+    return  html2canvas(element).then(canvas => {
+      const imgData = canvas.toDataURL('image/png');
+      const imgWidth = 210; // Ширина PDF страницы в мм (A4 размер)
+      const imgHeight = canvas.height * imgWidth / canvas.width;
+
+      if(index) {
+        pdf.addPage()
+      }
+      pdf.addImage(imgData, 'PNG', 0, 0, imgWidth, imgHeight, null, 'NONE');
+    })
+  }))
+      .then(() => {
+        pdf.save('прописи.pdf');
+      })
 }
 </script>
