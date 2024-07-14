@@ -41,38 +41,44 @@
           </text>
         </template>
       </template>
-<!--      <foreignObject-->
-<!--          x="10"-->
-<!--          :y="15"-->
-<!--          :width="maxWidth"-->
-<!--          height="100%"-->
-<!--          requiredFeatures="http://www.w3.org/TR/SVG11/feature#Extensibility">-->
-<!--        <div-->
-<!--            xmlns="http://www.w3.org/1999/xhtml"-->
-<!--            style="font-family: 'Propisi';font-size:32px;line-height: 35px;"-->
-<!--        >-->
-<!--        </div>-->
-<!--      </foreignObject>-->
     </svg>
   </div>
-  <span id="span" style="font-family: 'Propisi';font-size:32px;position: absolute;visibility: hidden"/>
+  <canvas
+      id="canvas"
+      style="position:absolute;top:-1000px;left:-1000px;visibility: hidden;opacity: 0;"
+  ></canvas>
 </template>
 
 <script setup>
-import {ref, computed, watchPostEffect, nextTick, watch} from "vue";
+import {ref, computed, watchPostEffect, onMounted} from "vue";
 import {useStore} from 'vuex'
 import {base64} from "@/fonts/propisi.js";
 
 const store = useStore()
 const lineHeight = ref(35)
-const fontSize = 32;
+const fontSize = 30;
 const maxWidth = 620; // Максимальная ширина текста
 
-const TEXT_LINES_PER_PAGE = 23
+const TEXT_LINES_PER_PAGE = 25
 
 const isShowText = ref(true)
 
 const rowText = computed(() => store.state.text)
+
+const canvasCtx = ref(null)
+
+onMounted(() => {
+  const ctx = document.getElementById('canvas').getContext('2d');
+  const myFont = new FontFace('MyAwesomeFont', 'url(/fonts/propisi.ttf)');
+
+  myFont.load()
+      .then(function (font) {
+        document.fonts.add(font);
+        ctx.font = `${fontSize}px MyAwesomeFont`;
+        canvasCtx.value = ctx
+      })
+      .catch(console.error);
+})
 
 const amountDiagonLines = computed(() => {
   const doubleLines = TEXT_LINES_PER_PAGE * 4
@@ -80,13 +86,8 @@ const amountDiagonLines = computed(() => {
   return doubleLines > test ? doubleLines : test
 })
 
-async function getTextWidth(span, text) {
-  span.textContent = text;
-  return new Promise((res, rej) => {
-    setTimeout(() => {
-      res(span.offsetWidth)
-    }, 30)
-  })
+function getTextWidth(text) {
+  return canvasCtx.value?.measureText(text).width || 0;
 }
 
 function setCustomFont() {
@@ -115,15 +116,13 @@ watchPostEffect(() => {
 })
 
 const textLinesPerPages = ref([])
-watchPostEffect(async() => {
+watchPostEffect(async () => {
   isShowText.value = false
   const text = rowText.value
   if (!text) return []
 
   // Распили на строки
   const abzacz = text.split('\n')
-
-  const span = document.getElementById('span');
 
   const res1 = []
 
@@ -133,7 +132,7 @@ watchPostEffect(async() => {
 
     for (const word of words) {
       let testLine = currentLine + (currentLine ? ' ' : '') + word;
-      let width = await getTextWidth(span, testLine)
+      let width = getTextWidth(testLine)
 
       if (width > maxWidth && currentLine) {
         res1.push(currentLine)
@@ -159,7 +158,7 @@ watchPostEffect(async() => {
   }
   textLinesPerPages.value = res
   isShowText.value = true
-} )
+})
 </script>
 
 <style scoped>
